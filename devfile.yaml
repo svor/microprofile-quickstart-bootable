@@ -1,0 +1,72 @@
+schemaVersion: 2.1.0
+metadata:
+  name: jboss-eap-bootable
+components:
+  - name: tools
+    container:
+      image: registry.redhat.io/codeready-workspaces/plugin-java11-rhel8
+      env:
+        - name: MAVEN_OPTS
+          value: "-Xmx200m -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xms20m -Djava.security.egd=file:/dev/./urandom -Duser.home=/home/jboss"
+      memoryLimit: 3Gi
+      endpoints:
+        - exposure: public
+          name: eap-http
+          protocol: http
+          targetPort: 8080
+        - exposure: internal
+          name: eap-management
+          protocol: http
+          targetPort: 9990
+        - exposure: internal
+          name: debug
+          protocol: http
+          targetPort: 8000
+      volumeMounts:
+        - name: m2
+          path: /home/jboss/.m2
+        - name: gradle
+          path: /home/jboss/.gradle
+  - name: m2
+    volume:
+      size: 1G
+  - name: gradle
+    volume:
+      size: 1G
+commands:
+  - id: build
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/microprofile-fault-tolerance
+      commandLine: mvn -Pbootable-jar  clean package
+      group:
+        kind: build
+  - id: run
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/microprofile-fault-tolerance
+      commandLine: mvn -Pbootable-jar -Dwildfly.bootable.arguments="-b=0.0.0.0"  org.wildfly.plugins:wildfly-jar-maven-plugin:run
+      group:
+        kind: run
+  - id: build-and-run-in-debug
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/microprofile-fault-tolerance
+      commandLine: mvn -Pbootable-jar  -Dwildfly.bootable.arguments="-b=0.0.0.0" -Dwildfly.bootable.jvmArguments="-agentlib:jdwp=transport=dt_socket,address=0.0.0.0:8000,server=y,suspend=n" clean org.wildfly.plugins:wildfly-jar-maven-plugin:dev && 
+          mvn package -Ddev -Pbootable-jar && BOOTABLE_XP_PID=$(jps | grep microprofile-fault-tolerance-bootable.jar | awk '{print $1}') && while [[ ( -d /proc/$BOOTABLE_XP_PID ) && ( -z `grep zombie /proc/$BOOTABLE_XP_PID/status` ) ]]; do sleep 1; done
+      group:
+        kind: build
+  - id: hot-update
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/microprofile-fault-tolerance
+      commandLine: mvn package -Ddev -Pbootable-jar
+      group:
+        kind: run
+  - id: stop-server
+    exec:
+      component: tools
+      workingDir: ${PROJECT_SOURCE}/microprofile-fault-tolerance
+      commandLine: mvn -Pbootable-jar  org.wildfly.plugins:wildfly-jar-maven-plugin:shutdown
+      group:
+        kind: run
