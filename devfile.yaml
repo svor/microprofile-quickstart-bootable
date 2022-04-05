@@ -4,10 +4,7 @@ metadata:
 components:
   - name: tools
     container:
-      image: registry.redhat.io/codeready-workspaces/plugin-java11-rhel8
-      env:
-        - name: MAVEN_OPTS
-          value: "-Xmx200m -XX:+UseParallelGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xms20m -Djava.security.egd=file:/dev/./urandom -Duser.home=/home/jboss"
+      image: registry.redhat.io/codeready-workspaces/udi-rhel8  
       memoryLimit: 3Gi
       endpoints:
         - exposure: public
@@ -24,9 +21,9 @@ components:
           targetPort: 8000
       volumeMounts:
         - name: m2
-          path: /home/jboss/.m2
+          path: /home/user/.m2
         - name: gradle
-          path: /home/jboss/.gradle
+          path: /home/user/.gradle
   - name: m2
     volume:
       size: 1G
